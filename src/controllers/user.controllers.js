@@ -42,15 +42,15 @@ const registerUser = asyncHandler(async (req,res)=>{
 
     // filehandling
     const avatar_local_path = req.files?.avatar[0]?.path
-    console.log(file_avatar)
-    const coverImage_local_path = req.files?.coverImage[0]?.path
+    const coverImage_local_path = req.files?.coverimage[0]?.path
+    console.log(coverImage_local_path)
 
     if(!avatar_local_path){
         throw new ApiError(400,"avatar file is required")
     }
 
     const avatar = await uploadOnCloudnary(avatar_local_path)
-    const coverImage = await uploadOnCloudnary(coverImage_local_path)
+    const coverimage = await uploadOnCloudnary(coverImage_local_path)
 
     if(!avatar){
         throw new ApiError(400,"avatar file is required")
@@ -58,9 +58,10 @@ const registerUser = asyncHandler(async (req,res)=>{
 
 
     const user = await User.create({
+        password,
         fullname,
         avatar : avatar.url,
-        coverImage : coverImage.url||"",
+        coverImage : coverimage.url||"",
         email,
         username:username.toLowerCase()
     })
@@ -75,7 +76,7 @@ const registerUser = asyncHandler(async (req,res)=>{
 
 
     return res.status(201).json(
-        new ApiResponse(200,createdUser,"User gegisteres Successfully")
+        new ApiResponse(200,createdUser,"User Registered Successfully")
     )
 })
 
