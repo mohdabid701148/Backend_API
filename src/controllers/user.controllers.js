@@ -152,7 +152,34 @@ return res
         )
     );
 })
-const logoutUser = asyncHandler(async(req,res)=>{
-    
-})
-export {registerUser,loginUser}
+const logoutUser = asyncHandler(async (req, res) => {
+
+    // 1️⃣ Remove refresh token from DB
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $unset: {
+                refreshToken: 1 // removes field
+            }
+        },
+        {
+            new: true
+        }
+    );
+
+    // 2️⃣ Cookie options (same as login)
+    const options = {
+        httpOnly: true,
+        secure: true
+    };
+
+    // 3️⃣ Clear cookies
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(
+            new ApiResponse(200, {}, "User logged out successfully")
+        );
+});
+export {registerUser,loginUser,logoutUser}
