@@ -503,6 +503,96 @@ const deleteUserAccount = asyncHandler(async (req, res) => {
             new ApiResponse(200, {}, "User account deleted successfully")
         );
 });
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+
+    const userId = new mongoose.Types.ObjectId(req.user._id);
+
+    const user = await User.aggregate([
+        // 1️⃣ Match current user
+        {
+            $match: {
+                _id: userId
+            }
+        },
+
+        // 2️⃣ Lookup videos from watchHistory
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+
+                    // 🔥 Only published videos
+                    {
+                        $match: {
+                            isPublished: true
+                        }
+                    },
+
+                    // 🔥 Lookup owner (channel info)
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+
+                    // Convert owner array → object
+                    {
+                        $addFields: {
+                            owner: { $first: "$owner" }
+                        }
+                    },
+
+                    // Sort latest watched first
+                    {
+                        $sort: {
+                            createdAt: -1
+                        }
+                    },
+
+                    // Final clean data
+                    {
+                        $project: {
+                            title: 1,
+                            thumbnail: 1,
+                            duration: 1,
+                            views: 1,
+                            createdAt: 1,
+                            owner: 1
+                        }
+                    }
+                ]
+            }
+        }
+    ]);
+
+    if (!user?.length) {
+        throw new ApiError(404, "User not found");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            user[0].watchHistory,
+            "Watch history fetched successfully"
+        )
+    );
+});
 export {registerUser,
     loginUser,
     logoutUser,
@@ -513,5 +603,6 @@ export {registerUser,
     updateUserAvatar,
     updateUserCoverImage,
     deleteUserAccount,
-    getUserProfile
+    getUserProfile,
+    getWatchHistory
 }

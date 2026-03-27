@@ -10,7 +10,8 @@ import {
     updateUserAvatar,
     updateUserCoverImage,
     deleteUserAccount,
-    getUserProfile
+    getUserProfile,
+    getWatchHistory
 } from "../controllers/user.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -54,10 +55,12 @@ router.route("/cover-image").patch(
     updateUserCoverImage
 );
 
-// DELETE ACCOUNT
-router.route("/delete-account").delete(verifyJWT, deleteUserAccount);
 
 // PUBLIC PROFILE
 router.route("/profile/:username").get(getUserProfile);
 
+// DELETE ACCOUNT
+router.route("/delete-account").delete(verifyJWT, deleteUserAccount);
+
+router.route("/history").get(verifyJWT,getWatchHistory);
 export default router;
