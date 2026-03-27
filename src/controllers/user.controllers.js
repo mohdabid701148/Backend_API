@@ -388,20 +388,91 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         new ApiResponse(200, user, "Cover image updated successfully")
     );
 });
-const getUserProfile = asyncHandler(async (req, res) => {
+import mongoose from "mongoose";
 
+const getUserProfile = asyncHandler(async (req, res) => {
     const { username } = req.params;
 
-    const user = await User.findOne({
-        username: username.toLowerCase()
-    }).select("-password -refreshToken");
+    if (!username?.trim()) {
+        throw new ApiError(400, "Username is required");
+    }
 
-    if (!user) {
+    const currentUserId = req.user?._id;
+
+    const user = await User.aggregate([
+        // 1️⃣ Match user
+        {
+            $match: {
+                username: username.toLowerCase()
+            }
+        },
+
+        // 2️⃣ Get subscribers (followers)
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+
+        // 3️⃣ Get subscribed channels (following)
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+
+        // 4️⃣ Add computed fields
+        {
+            $addFields: {
+                subscribersCount: { $size: "$subscribers" },
+                subscribedToCount: { $size: "$subscribedTo" },
+
+                isSubscribed: {
+                    $cond: {
+                        if: {
+                            $in: [
+                                new mongoose.Types.ObjectId(currentUserId),
+                                "$subscribers.subscriber"
+                            ]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+
+        // 5️⃣ Clean output
+        {
+            $project: {
+                fullname: 1,
+                username: 1,
+                email: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscribersCount: 1,
+                subscribedToCount: 1,
+                isSubscribed: 1
+            }
+        }
+    ]);
+
+    if (!user?.length) {
         throw new ApiError(404, "User not found");
     }
 
     return res.status(200).json(
-        new ApiResponse(200, user, "User profile fetched successfully")
+        new ApiResponse(
+            200,
+            user[0],
+            "User profile fetched successfully"
+        )
     );
 });
 const deleteUserAccount = asyncHandler(async (req, res) => {
